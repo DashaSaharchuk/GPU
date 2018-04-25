@@ -1,0 +1,37 @@
+#include <cuda.h>
+#include <stdio.h>
+
+int N = 4;
+int size_block_x = 4, size_block_y = 4;
+
+__global__ void transpose(float *a, float *b, int N) {
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    b[j * N + i] = a[i * N + j];
+}
+
+int main() {
+    float *a, *b;
+    float *array = (float*) malloc(N * N * sizeof(float));
+    float *result = (float*) malloc(N * N * sizeof(float));
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            array[i * N + j] = i;
+            printf("%1.1f   ", array[i * N + j]);
+        }
+        printf("\n");
+    }
+    cudaMalloc(&a, N * N * sizeof(float));
+    cudaMalloc(&b, N * N * sizeof(float));
+    cudaMemcpy(a, array, N * N * sizeof(float), cudaMemcpyHostToDevice);
+    transpose <<< dim3(N / size_block_x, N / size_block_y), dim3(size_block_x, size_block_y ) >>> (a, b, N);
+    cudaDeviceSynchronize();
+    cudaMemcpy(result, b, N * N * sizeof(float), cudaMemcpyDeviceToHost);
+    printf("\n");
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%1.1f   ", result[i * N + j]);
+        }
+        printf("\n");
+    }
+}

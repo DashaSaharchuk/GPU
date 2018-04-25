@@ -1,0 +1,47 @@
+int threads_per_block = 192;
+
+#include <cuda.h>
+#include <stdio.h>
+
+#define CUDA_CHECK_RETURN(value){\
+    cudaError_t _m_cudaStat = value;\
+    if(_m_cudaStat != cudaSuccess){\
+        fprintf(stderr, "Error %s at line %d in file %s\n",\
+        cudaGetErrorString(_m_cudaStat), __LINE__, __FILE__);\
+        exit(1);\
+    }}\
+
+__global__ void gTest(float *a, float *b){
+    int i = threadIdx.x+blockDim.x*blockIdx.x;
+    a[i] = i;
+    b[i] = 200000000 - i;
+    a[i] += b[i];
+}
+
+int main(){
+    float *da, *za;
+    int threads_per_block = 192;
+    
+    int num_of_blocks = 20;
+    int N = 20000000;
+    float elapsedTime;
+    cudaEvent_t start,stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    CUDA_CHECK_RETURN(cudaMalloc((void**)&da, N*sizeof(float)));
+    CUDA_CHECK_RETURN(cudaMalloc((void**)&za, N*sizeof(float)));
+    cudaEventRecord(start,0);
+    gTest<<<dim3(num_of_blocks), dim3(threads_per_block)>>>(da, za);
+    //cudaThreadSynchronize();
+    cudaEventRecord(stop,0);
+    cudaEventSynchronize(stop);
+    //CUDA_CHECK_RETURN(cudaDeviceSynchronize());
+    CUDA_CHECK_RETURN(cudaGetLastError());
+    cudaEventElapsedTime(&elapsedTime,start,stop);
+    fprintf(stderr,"gTest took %g\n", elapsedTime);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    cudaFree(da);
+    cudaFree(za);
+    return 0;
+}

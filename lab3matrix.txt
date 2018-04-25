@@ -1,0 +1,48 @@
+#include <cuda.h>
+#include <stdio.h>
+
+__global__ void gTest1(float *a){
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    int I = gridDim.x * blockDim.x;
+    a[i+j*I] = (float)(threadIdx.x+blockDim.y*blockIdx.x);
+}
+
+__global__ void gTest2(float *a){
+    int i = threadIdx.x + blockIdx.x * blockDim.x;
+    int j = threadIdx.y + blockIdx.y * blockDim.y;
+    int J = gridDim.y * blockDim.y;
+    a[j+i*J] = (float)(threadIdx.y+threadIdx.x*blockDim.y);
+}
+
+int main() {
+    int N = 100;
+    int threads_per_block = 32, count_of_blocks = 10;
+    float *a, *b;
+    cudaMalloc((void**)&a, N * N * sizeof(float));
+    cudaMalloc((void**)&b, N * N * sizeof(float));
+    float elapsed_time;
+    cudaEvent_t start_1, start_2, stop_1, stop_2;
+    cudaEventCreate(&start_1);
+    cudaEventCreate(&stop_1);
+    cudaEventCreate(&start_2);
+    cudaEventCreate(&stop_2);
+    cudaEventRecord(start_1, 0);
+    gTest1 <<< dim3(N / count_of_blocks, N / count_of_blocks), dim3(threads_per_block, threads_per_block) >>> (a);
+    cudaEventRecord(stop_1, 0);
+    cudaEventSynchronize(stop_1);
+    cudaEventRecord(start_2, 0);
+    gTest2 <<< dim3(N/count_of_blocks,N/ count_of_blocks), dim3(threads_per_block, threads_per_block) >>> (b);
+    cudaEventRecord(stop_2, 0);
+    cudaEventSynchronize(stop_2);
+    cudaEventElapsedTime(&elapsed_time, start_1, stop_1);
+    fprintf(stderr, "gTest1: %g\n", elapsed_time);
+    cudaEventElapsedTime(&elapsed_time, start_2, stop_2);
+    fprintf(stderr, "gTest2: %g\n", elapsed_time);
+    cudaEventDestroy(start_1);
+    cudaEventDestroy(start_2);
+    cudaEventDestroy(stop_1);
+    cudaEventDestroy(stop_2);
+}
+
+
